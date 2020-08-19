@@ -11,7 +11,7 @@ namespace EntityFrameworkCoreTests.Context
         /// <typeparam name="T"></typeparam>
         /// <param name="source"></param>
         /// <returns></returns>
-        public static T ToDbContext<T>(this DbContextOptions<T> source) where T : DbContext
+        public static T BuildDbContext<T>(this DbContextOptions<T> source) where T : DbContext
         {
             return (T)Activator.CreateInstance(typeof(T), source)!;
         }
@@ -24,7 +24,7 @@ namespace EntityFrameworkCoreTests.Context
         /// <returns></returns>
         public static DbContextOptions<T> EnsureDb<T>(this DbContextOptions<T> source) where T : DbContext
         {
-            using var context = source.ToDbContext();
+            using var context = source.BuildDbContext();
             context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
             return source;

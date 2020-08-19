@@ -14,7 +14,7 @@ namespace EntityFrameworkCoreTests.Context
         /// <returns></returns>
         public static DbContextOptions<BookStoreContext> SeedWith(this DbContextOptions<BookStoreContext> source, IEnumerable<Book> books)
         {
-            using var context = source.ToDbContext();
+            using var context = source.BuildDbContext();
             context.Books.AddRange(books);
             context.SaveChanges();
             return source;
