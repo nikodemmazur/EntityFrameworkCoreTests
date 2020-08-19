@@ -1,5 +1,5 @@
 ﻿using EntityFrameworkCoreTests.Entities;
-using EntityFrameworkCoreTests.TestData;
+using EntityFrameworkCoreTests.Loaders;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 

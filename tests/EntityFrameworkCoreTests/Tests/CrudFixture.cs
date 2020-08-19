@@ -1,5 +1,7 @@
 ﻿using EntityFrameworkCoreTests.Context;
 using EntityFrameworkCoreTests.Db;
+using EntityFrameworkCoreTests.Logging;
+using System;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -22,12 +24,11 @@ namespace EntityFrameworkCoreTests.Tests
                      .AsSqlConnectionString<BookStoreContext>()
                      .EnsureDb()
                      .SeedWith(@"TestData\RawTestData1.json")
-                     .ToDbContext();
+                     .ToDbContext()
+                     .StartLogging(_testOutput.AsLineWriter());
 
             foreach (var book in ctx.Books)
                 _testOutput.WriteLine(new { book.Title, book.Price }.ToString());
-
-            // TO DO: print created SQL
         }
     }
 }

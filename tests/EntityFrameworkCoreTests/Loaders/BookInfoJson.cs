@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace EntityFrameworkCoreTests.TestData
+namespace EntityFrameworkCoreTests.Loaders
 {
     public class BookInfoJson
     {

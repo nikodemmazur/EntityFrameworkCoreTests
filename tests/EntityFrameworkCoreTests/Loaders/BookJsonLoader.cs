@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace EntityFrameworkCoreTests.TestData
+namespace EntityFrameworkCoreTests.Loaders
 {
     public static class BookJsonLoader
     {

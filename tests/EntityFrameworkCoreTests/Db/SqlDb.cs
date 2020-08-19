@@ -1,4 +1,4 @@
-﻿using EntityFrameworkCoreTests.Helpers;
+﻿using EntityFrameworkCoreTests.Loaders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System;
