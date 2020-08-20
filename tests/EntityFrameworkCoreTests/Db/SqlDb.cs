@@ -59,11 +59,12 @@ namespace EntityFrameworkCoreTests.Db
         /// <summary>
         /// Creates the connection string from the default connection string, the caller type name and method name.
         /// </summary>
+        /// <param name="stackDepth"></param>
         /// <returns></returns>
-        public static string CreateConnectionString()
+        public static string CreateConnectionString(int stackDepth = 0)
         {
             var defConn = AppSettingsLoader.GetConfiguration().GetConnectionString("DefaultConnection");
-            return CreateConnectionStringFrom(defConn, 2, true);
+            return CreateConnectionStringFrom(defConn, 2 + stackDepth, true);
         }
     }
 }
