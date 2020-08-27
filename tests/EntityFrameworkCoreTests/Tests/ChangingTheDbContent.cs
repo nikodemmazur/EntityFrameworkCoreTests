@@ -42,7 +42,7 @@ namespace EntityFrameworkCoreTests.Tests
                     .Books
                     .Where(b => b.Title == "New Book")
                     .Count()
-                    .Should().Be(0, "because there's no such book in the seed data");
+                    .Should().Be(0, $"because there's no such {nameof(Book)} in the seed data");
 
                 var newBook = new Book
                 {
@@ -69,7 +69,7 @@ namespace EntityFrameworkCoreTests.Tests
                 context
                     .Books
                     .SingleOrDefault(b => b.Title == "New Book")
-                    .Should().NotBeNull("because the Book has already been added");
+                    .Should().NotBeNull($"because the {nameof(Book)} has already been added");
             }
         }
 
@@ -83,7 +83,7 @@ namespace EntityFrameworkCoreTests.Tests
                         .Books
                         .Single(b => b.Title.ToLower().Contains("pro asp.net"));
 
-                book.PublishedOn.Should().NotBeAfter(DateTime.Today, "because the book was published in 2010");
+                book.PublishedOn.Should().NotBeAfter(DateTime.Today, $"because the {nameof(Book)} was published in 2010");
                 book.PublishedOn = 18.April(2038);
                 context.SaveChanges().Should().Be(1, "because only one entry has been modified");
             }
@@ -128,7 +128,7 @@ namespace EntityFrameworkCoreTests.Tests
 
                 bookIdToChange = book.BookId;
 
-                book.PublishedOn.Should().NotBeAfter(DateTime.Today, "because the book was published in 2010");
+                book.PublishedOn.Should().NotBeAfter(DateTime.Today, $"because the {nameof(Book)} was published in 2010");
             }
 
             // Prepare the DTO that the entry will be updated with.
@@ -176,7 +176,7 @@ namespace EntityFrameworkCoreTests.Tests
                 var authorToUpdate = JsonConvert.DeserializeObject<Author>(json);
 
                 _ = context.Authors.Update(authorToUpdate);
-                context.SaveChanges().Should().Be(1, "because only one Author has been updated");
+                context.SaveChanges().Should().Be(1, $"because only one {nameof(Author)} has been updated");
             }
         }
 
@@ -220,7 +220,7 @@ namespace EntityFrameworkCoreTests.Tests
                     .Invoking(ctx => ctx.SaveChanges())
                     .Should()
                     .Throw<DbUpdateException>()
-                    .WithInnerException<Microsoft.Data.SqlClient.SqlException>("because of the BookId foreign key duplication");
+                    .WithInnerException<Microsoft.Data.SqlClient.SqlException>($"because of the {nameof(PriceOffer.BookId)} foreign key duplication");
             }
         }
 
@@ -264,8 +264,8 @@ namespace EntityFrameworkCoreTests.Tests
                     book.Promotion.PromotionalText = text;
                 }
 
-                context.SaveChanges().Should().Be(1, "because the PriceOffers table changed only - " +
-                    "the Books table has no relational link (property) to track PriceOffers");
+                context.SaveChanges().Should().Be(1, $"because the {nameof(PriceOffer)}s table changed only - " +
+                    $"the {nameof(Book)} table has no relational link (property) to track {nameof(PriceOffer)}s");
             }
 
             using (var context = CreateBookStoreContext())
@@ -310,7 +310,10 @@ namespace EntityFrameworkCoreTests.Tests
 
             using (var context = CreateBookStoreContext())
             {
-                context.Set<Review>().Should().Contain(r => r.ReviewId == review.ReviewId, "because the retrieved set represents the whole table in the db");
+                context
+                    .Set<Review>()
+                    .Should()
+                    .Contain(r => r.ReviewId == review.ReviewId, "because the retrieved set represents the whole table in the db");
             }
 
             using (var context = CreateBookStoreContext())
@@ -403,7 +406,7 @@ namespace EntityFrameworkCoreTests.Tests
                             })
                         .ToList();
 
-                context.SaveChanges().Should().Be(1, "because the BookAuthor table has been updated");
+                context.SaveChanges().Should().Be(1, $"because the {nameof(BookAuthor)} table has been updated");
             }
 
             using (var context = CreateBookStoreContext())
@@ -416,7 +419,7 @@ namespace EntityFrameworkCoreTests.Tests
                     .AuthorsLink.Select(al => al.Author)
                     .Should().HaveCount(3)
                     .And
-                    .Contain(a => a.Name == authorToAdd.Name, "because the Author has been assigned to the book");
+                    .Contain(a => a.Name == authorToAdd.Name, $"because the {nameof(Author)} has been assigned to the book");
             }
         }
 
@@ -446,7 +449,7 @@ namespace EntityFrameworkCoreTests.Tests
                 reviewToChange.Comment = "Great book!";
                 reviewToChange.BookId = bookId;
 
-                context.SaveChanges().Should().Be(1, "because only one entry of the Reviews table has changed");
+                context.SaveChanges().Should().Be(1, $"because only one entry of the {nameof(Review)}s table has changed");
             }
 
             using (var context = CreateBookStoreContext())
@@ -457,7 +460,7 @@ namespace EntityFrameworkCoreTests.Tests
                     .Single(b => b.BookId == bookId)
                     .Reviews
                     .Should()
-                    .Contain(r => r.Comment == "Great book!", "because the Review has been transfered from a different Book to this one " +
+                    .Contain(r => r.Comment == "Great book!", $"because the {nameof(Review)} has been transfered from a different Book to this one " +
                         "and its comment has been updated");
             }
         }
@@ -488,7 +491,37 @@ namespace EntityFrameworkCoreTests.Tests
                 context
                     .Books
                     .Count()
-                    .Should().Be(bookCountBefore - 1, "because one Book has been removed");
+                    .Should().Be(bookCountBefore - 1, $"because one {nameof(Book)} has been removed");
+            }
+        }
+
+        [Fact]
+        public void HidesBook()
+        {
+            int bookCountBefore;
+
+            using (var context = CreateBookStoreContext())
+            {
+                bookCountBefore =
+                    context
+                        .Books
+                        .Count();
+
+                context
+                    .Books
+                    .First()
+                    .SoftDeleted = true; // "... data never stops being data: it transforms into another state."
+                                         // That's the motivation for introducing the 'SoftDeleted' status.
+
+                context.SaveChanges().Should().Be(1, $"because one {nameof(Book)} entry has been modified");
+            }
+
+            using (var context = CreateBookStoreContext())
+            {
+                context
+                    .Books
+                    .Count()
+                    .Should().Be(bookCountBefore - 1, $"because {nameof(BookStoreContext)} has {nameof(Book.SoftDeleted)} query filter");
             }
         }
     }
