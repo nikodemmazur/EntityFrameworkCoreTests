@@ -69,7 +69,7 @@ namespace EntityFrameworkCoreTests.Tests
                 context
                     .Books
                     .SingleOrDefault(b => b.Title == "New Book")
-                    .Should().NotBeNull("because the book has already been added");
+                    .Should().NotBeNull("because the Book has already been added");
             }
         }
 
@@ -365,6 +365,130 @@ namespace EntityFrameworkCoreTests.Tests
                     .Single(b => b.BookId == 1)
                     .Reviews
                     .Should().NotBeNull("because that's the proper way to include related objects");
+            }
+        }
+
+        [Fact]
+        public void AddsAnExistingAuthorToTheBook()
+        {
+            Author authorToAdd;
+
+            using (var context = CreateBookStoreContext())
+            {
+                authorToAdd =
+                    context
+                        .Authors
+                        .Include(a => a.BooksLink)
+                        .ThenInclude(bl => bl.Book)
+                        .Where(a => a.BooksLink
+                                     .Select(bl => bl.Book)
+                                     .Where(b => b.Title.ToLower().Contains("pro asp.net"))
+                                     .Count() == 0)
+                        .First();
+
+                var bookToUpdate =
+                    context
+                        .Books
+                        .Include(b => b.AuthorsLink)
+                        .Single(b => b.Title.ToLower().StartsWith("pro asp.net"));
+
+                bookToUpdate.AuthorsLink =
+                    bookToUpdate
+                        .AuthorsLink
+                        .Append(new BookAuthor
+                            {
+                                Book = bookToUpdate,
+                                Author = authorToAdd,
+                                Order = 2
+                            })
+                        .ToList();
+
+                context.SaveChanges().Should().Be(1, "because the BookAuthor table has been updated");
+            }
+
+            using (var context = CreateBookStoreContext())
+            {
+                context
+                    .Books
+                    .Include(b => b.AuthorsLink)
+                    .ThenInclude(al => al.Author)
+                    .Single(b => b.Title.ToLower().StartsWith("pro asp.net"))
+                    .AuthorsLink.Select(al => al.Author)
+                    .Should().HaveCount(3)
+                    .And
+                    .Contain(a => a.Name == authorToAdd.Name, "because the Author has been assigned to the book");
+            }
+        }
+
+        [Fact]
+        public void ChangesReviewAndThenAssignsItToADifferentBook()
+        {
+            int bookId;
+            int revCountBefore;
+
+            using (var context = CreateBookStoreContext())
+            {
+                var book =
+                    context
+                        .Books
+                        .Include(b => b.Reviews)
+                        .Single(b => b.Title.ToLower().StartsWith("pro asp.net"));
+
+                bookId = book.BookId;
+                revCountBefore = book.Reviews.Count();
+
+                var reviewToChange =
+                    context
+                        .Set<Review>()
+                        .Where(r => r.BookId != bookId)
+                        .First();
+
+                reviewToChange.Comment = "Great book!";
+                reviewToChange.BookId = bookId;
+
+                context.SaveChanges().Should().Be(1, "because only one entry of the Reviews table has changed");
+            }
+
+            using (var context = CreateBookStoreContext())
+            {
+                context
+                    .Books
+                    .Include(b => b.Reviews)
+                    .Single(b => b.BookId == bookId)
+                    .Reviews
+                    .Should()
+                    .Contain(r => r.Comment == "Great book!", "because the Review has been transfered from a different Book to this one " +
+                        "and its comment has been updated");
+            }
+        }
+
+        [Fact]
+        public void RemovesBook()
+        {
+            int bookCountBefore;
+
+            using (var context = CreateBookStoreContext())
+            {
+                bookCountBefore =
+                    context
+                        .Books
+                        .Count();
+
+                var bookToRemove =
+                    context
+                        .Books
+                        .First();
+
+                context.Remove(bookToRemove); // Starts tracking with all related objects so that the cascade delete is possible. 
+                context.SaveChanges().Should().Be(1, "because one change has been applied - notice that the cascade deletes don't count here");
+            }
+
+            using (var context = CreateBookStoreContext())
+            {
+                context
+                    .Books
+                    .Count()
+                    .Should().Be(bookCountBefore - 1, "because one Book has been removed");
             }
         }
     }
