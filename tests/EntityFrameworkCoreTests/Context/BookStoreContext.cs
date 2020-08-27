@@ -23,6 +23,11 @@ namespace EntityFrameworkCoreTests.Context
             modelBuilder
                 .Entity<BookAuthor>()
                 .HasKey(x => new { x.BookId, x.AuthorId });
+
+            // Adds a filter to all accesses to the Book entities.
+            modelBuilder
+                .Entity<Book>()
+                .HasQueryFilter(b => !b.SoftDeleted);
         }
     }
 }
