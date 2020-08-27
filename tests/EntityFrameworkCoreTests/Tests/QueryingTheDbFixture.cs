@@ -1,5 +1,6 @@
 ﻿using EntityFrameworkCoreTests.Context;
 using EntityFrameworkCoreTests.Db;
+using EntityFrameworkCoreTests.Entities;
 using EntityFrameworkCoreTests.Logging;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +50,7 @@ namespace EntityFrameworkCoreTests.Tests
                 .AsNoTracking()
                 .First()
                 .Reviews
-                .Should().BeNull("because the Reviews table to which the Books is linked has not been included by Include()");
+                .Should().BeNull($"because the {nameof(Review)}s table to which the {nameof(Book)}s is linked has not been included by Include()");
         }
 
         [Fact]
@@ -63,7 +64,7 @@ namespace EntityFrameworkCoreTests.Tests
                 .Include(b => b.Reviews)
                 .First()
                 .Reviews
-                .Should().NotBeNull("because Reviews have been included with Include()");
+                .Should().NotBeNull($"because {nameof(Review)}s have been included with Include()");
         }
 
         [Fact]
@@ -80,7 +81,7 @@ namespace EntityFrameworkCoreTests.Tests
                 .AuthorsLink
                 .First()
                 .Author
-                .Should().NotBeNull("because Author has been included as a second-level relationship with ThenInclude()");
+                .Should().NotBeNull($"because {nameof(Author)} has been included as a second-level relationship with ThenInclude()");
         }
 
         [Fact]
