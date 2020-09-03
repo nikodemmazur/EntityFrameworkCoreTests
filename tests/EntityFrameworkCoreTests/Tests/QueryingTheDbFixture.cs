@@ -16,16 +16,22 @@ namespace EntityFrameworkCoreTests.Tests
     {
         private readonly ITestOutputHelper _testOutput;
         private readonly DbConnectionString _dbConnectionString;
+        private readonly DbContextFactory<BookStoreContext> _fact;
 
         private BookStoreContext CreateBookStoreContext() =>
-            BookStoreContextFactory.Instance.Create(_dbConnectionString, _testOutput.AsLineWriter());
+            _fact.Create(_dbConnectionString, _testOutput.AsLineWriter());
 
         public QueryingTheDbFixture(ITestOutputHelper testOutput)
         {
             _testOutput = testOutput;
             _dbConnectionString = DbConnectionString.Create(GetType().Name);
+            _fact = DbContextFactoryManager<BookStoreContext>.Instance.GetDbContextFactory(nameof(QueryingTheDbFixture));
 
-            BookStoreContextFactory.Instance.InitDb(_dbConnectionString, @"TestData\RawTestData1.json");
+            _fact.RegisterOnInit(dbCtxOpts =>
+            {
+                dbCtxOpts.SeedWith(@"TestData\RawTestData1.json");
+            });
+            _fact.InitDb(_dbConnectionString);
         }
 
         [Fact]

@@ -18,19 +18,25 @@ namespace EntityFrameworkCoreTests.Tests
     public class ChangingTheDbContent : TestClassBase
     {
         private readonly ITestOutputHelper _testOutput;
+        private readonly DbContextFactory<BookStoreContext> _fact;
 
         private BookStoreContext CreateBookStoreContext()
         {
             var dbConnectionString = DbConnectionString.Create(GetType().Name, GetCallerName(1));
-            return BookStoreContextFactory.Instance.Create(dbConnectionString, _testOutput.AsLineWriter());
+            return _fact.Create(dbConnectionString, _testOutput.AsLineWriter());
         }
 
         public ChangingTheDbContent(ITestOutputHelper testOutput)
         {
             _testOutput = testOutput;
+            _fact = DbContextFactoryManager<BookStoreContext>.Instance.GetDbContextFactory(nameof(ChangingTheDbContent));
 
+            _fact.RegisterOnInit(dbCtxOpts =>
+            {
+                dbCtxOpts.SeedWith(@"TestData\RawTestData1.json");
+            });
             var dbConnectionStrings = ListFactMethodNames().Select(str => DbConnectionString.Create(GetType().Name, str));
-            BookStoreContextFactory.Instance.InitDbAsync(dbConnectionStrings, @"TestData\RawTestData1.json").Wait();
+            _fact.InitDbAsync(dbConnectionStrings).Wait();
         }
 
         [Fact]
@@ -49,14 +55,14 @@ namespace EntityFrameworkCoreTests.Tests
                     Title = "New Book",
                     PublishedOn = DateTime.Today,
                     Reviews = new List<Review>
-                {
-                    new Review
                     {
-                        NumStars = 5,
-                        Comment = "Great new book!",
-                        VoterName = "Mr Tester"
+                        new Review
+                        {
+                            NumStars = 5,
+                            Comment = "Great new book!",
+                            VoterName = "Mr Tester"
+                        }
                     }
-                }
                 };
 
                 context.Add(newBook).Entity.BookId.Should().Be(0, "because the Db has not yet created the primary key");

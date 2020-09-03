@@ -17,19 +17,25 @@ namespace EntityFrameworkCoreTests.Tests
     public class ConfiguringNonrelationalProperties : TestClassBase
     {
         private readonly ITestOutputHelper _testOutput;
+        private readonly DbContextFactory<BookStoreContext> _fact;
 
         private BookStoreContext CreateBookStoreContext()
         {
             var dbConnectionString = DbConnectionString.Create(GetType().Name, GetCallerName(1));
-            return BookStoreContextFactory.Instance.Create(dbConnectionString, _testOutput.AsLineWriter());
+            return _fact.Create(dbConnectionString, _testOutput.AsLineWriter());
         }
 
         public ConfiguringNonrelationalProperties(ITestOutputHelper testOutput)
         {
             _testOutput = testOutput;
+            _fact = DbContextFactoryManager<BookStoreContext>.Instance.GetDbContextFactory(nameof(ConfiguringNonrelationalProperties));
 
+            _fact.RegisterOnInit(dbCtxOpts =>
+            {
+                dbCtxOpts.SeedWith(@"TestData\RawTestData1.json");
+            });
             var dbConnectionStrings = ListFactMethodNames().Select(str => DbConnectionString.Create(GetType().Name, str));
-            BookStoreContextFactory.Instance.InitDbAsync(dbConnectionStrings, @"TestData\RawTestData1.json").Wait();
+            _fact.InitDbAsync(dbConnectionStrings).Wait();
         }
 
         [Fact]
