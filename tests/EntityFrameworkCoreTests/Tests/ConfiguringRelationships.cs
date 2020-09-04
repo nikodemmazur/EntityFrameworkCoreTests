@@ -5,6 +5,7 @@ using EntityFrameworkCoreTests.TestHelpers;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 using Xunit.Abstractions;
@@ -20,11 +21,11 @@ namespace EntityFrameworkCoreTests.Tests
         /// Notice that "one-to-one" applies to <see cref="Attendee"/> as <see cref="Ticket"/> doesn't require <see cref="Attendee"/> to exist.
         /// The manner in how <see cref="Ticket"/> is related to <see cref="Attendee"/> should be rather defined as "one-to-zero-or-one".
         /// </summary>
-        public class OptionOne : TestClassBase
+        public class OneToOneOptionOne : TestClassBase
         {
             private readonly ITestOutputHelper _testOutput;
 
-            public OptionOne(ITestOutputHelper testOutput)
+            public OneToOneOptionOne(ITestOutputHelper testOutput)
             {
                 _testOutput = testOutput;
             }
@@ -59,7 +60,7 @@ namespace EntityFrameworkCoreTests.Tests
             }
 
             [Fact]
-            public void CreatesOptionOneRelationship()
+            public void CreatesOptionOneOneToOneRelationship()
             {
                 var dbConnectionString = DbConnectionString.Create(nameof(ConfiguringRelationships), GetCallerName());
                 using var context =
@@ -91,13 +92,13 @@ namespace EntityFrameworkCoreTests.Tests
         }
 
         /// <summary>
-        /// This class differs from <see cref="OptionOne"/> in that it inverted the relationship and let entities have navigation properties.
+        /// This class differs from <see cref="OneToOneOptionOne"/> in that it inverted the relationship and let entities have navigation properties.
         /// </summary>
-        public class OptionTwo : TestClassBase
+        public class OneToOneOptionTwo : TestClassBase
         {
             private readonly ITestOutputHelper _testOutput;
 
-            public OptionTwo(ITestOutputHelper testOutput)
+            public OneToOneOptionTwo(ITestOutputHelper testOutput)
             {
                 _testOutput = testOutput;
             }
@@ -130,7 +131,7 @@ namespace EntityFrameworkCoreTests.Tests
             }
 
             [Fact]
-            public void CreatesOptionTwoRelationship()
+            public void CreatesOptionTwoOneToOneRelationship()
             {
                 var dbConnectionString = DbConnectionString.Create(nameof(ConfiguringRelationships), GetCallerName());
                 using var context =
@@ -163,11 +164,11 @@ namespace EntityFrameworkCoreTests.Tests
         /// <summary>
         /// The recommended way to create dependent tables.
         /// </summary>
-        public class OptionThree : TestClassBase
+        public class OneToOneOptionThree : TestClassBase
         {
             private readonly ITestOutputHelper _testOutput;
 
-            public OptionThree(ITestOutputHelper testOutput)
+            public OneToOneOptionThree(ITestOutputHelper testOutput)
             {
                 _testOutput = testOutput;
             }
@@ -201,7 +202,7 @@ namespace EntityFrameworkCoreTests.Tests
             }
 
             [Fact]
-            public void CreatesOptionThreeRelationship()
+            public void CreatesOptionThreeOneToOneRelationship()
             {
                 var dbConnectionString = DbConnectionString.Create(nameof(ConfiguringRelationships), GetCallerName());
                 using var context =
@@ -235,6 +236,45 @@ namespace EntityFrameworkCoreTests.Tests
 
                 nameTicketTypePair.Should().BeEquivalentTo(new { Name = "John Smith", Type = "normal" }, "because that's the expected output" +
                     " of the above query");
+            }
+        }
+
+        public class OneToMany : TestClassBase
+        {
+            private readonly ITestOutputHelper _testOutput;
+
+            public OneToMany(ITestOutputHelper testOutput)
+            {
+                _testOutput = testOutput;
+            }
+
+            public class Notebook
+            {
+                public int NotebookId { get; set; }
+                public string Name { get; set; }
+                public ICollection<UsbSlot> Usbs { get; set; }
+            }
+
+            public class UsbSlot
+            {
+                public int UsbSlotId { get; set; }
+                public string UsbVersion { get; set; }
+                public int HostId { get; set; }
+            }
+
+            public class ManufacturerContext : DbContext
+            {
+                public DbSet<Notebook> Notebooks { get; set; }
+
+                public ManufacturerContext(DbContextOptions<ManufacturerContext> options) : base(options) { }
+
+                protected override void OnModelCreating(ModelBuilder modelBuilder)
+                {
+                    modelBuilder.Entity<Notebook>()
+                                .HasMany(n => n.Usbs)
+                                .WithOne()
+                                .HasForeignKey(u => u.HostId);
+                }
             }
         }
     }
