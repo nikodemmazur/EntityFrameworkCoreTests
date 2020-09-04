@@ -22,7 +22,7 @@ namespace EntityFrameworkCoreTests.Loaders
                     return new DateTime(int.Parse(split[0]), int.Parse(split[1]), int.Parse(split[2]));
             }
 
-            throw new InvalidOperationException($"The json publishedDate failed to decode: string was {publishedDate}");
+            throw new InvalidOperationException($"The JSON publishedDate failed to decode: string was {publishedDate}");
         }
 
         /// <summary>
