@@ -456,5 +456,256 @@ namespace EntityFrameworkCoreTests.Tests
                     " which has already been set by EF Core on SaveChanges()");
             }
         }
+
+        public class OwnedTypes : TestClassBase
+        {
+            private readonly ITestOutputHelper _testOutput;
+
+            public OwnedTypes(ITestOutputHelper testOutput)
+            {
+                _testOutput = testOutput;
+            }
+
+            public class OrderInfo
+            {
+                public int OrderInfoId { get; set; }
+                public string OrderNumber { get; set; }
+                public Address DeliveryAddress { get; set; }
+                public Address BillingAddress { get; set; }
+            }
+
+            public class Address
+            {
+                public string ZipPostCode { get; set; }
+                public string City { get; set; }
+            }
+
+            public class ShopContext : DbContext
+            {
+                public DbSet<OrderInfo> OrderInfos { get; set; }
+
+                public ShopContext(DbContextOptions<ShopContext> options) : base(options) { }
+
+                protected override void OnModelCreating(ModelBuilder modelBuilder)
+                {
+                    modelBuilder.Entity<OrderInfo>()
+                                .OwnsOne(oi => oi.DeliveryAddress);
+
+                    modelBuilder.Entity<OrderInfo>()
+                                .OwnsOne(oi => oi.BillingAddress);
+                }
+            }
+
+            [Fact]
+            public void OwnedTypesDoNotNeedToBeIncluded()
+            {
+                var newBillingAddress = new Address { City = "Krakow", ZipPostCode = "04-218" };
+                var newDeliveryAddress = new Address { City = "Warsaw", ZipPostCode = "00-001" };
+                var newOrderInfo = new OrderInfo { BillingAddress = newBillingAddress, DeliveryAddress = newDeliveryAddress, OrderNumber = "#1" };
+
+                var dbConnectionString = DbConnectionString.Create(nameof(ConfiguringRelationships), GetCallerName());
+                var dbCtxOptions = dbConnectionString
+                    .AsSqlConnectionString<ShopContext>()
+                    .EnsureDb();
+                using (var context = dbCtxOptions.BuildDbContext().StartLogging(_testOutput.AsLineWriter()))
+                {
+                    context.Add(newOrderInfo);
+                    context.SaveChanges();
+                }
+
+                using (var context = dbCtxOptions.BuildDbContext().StartLogging(_testOutput.AsLineWriter()))
+                {
+                    var oi =
+                        context
+                            .OrderInfos
+                            .Single();
+
+                    oi.BillingAddress.Should().NotBeNull("because it's an owned type");
+                    oi.DeliveryAddress.Should().NotBeNull("because it's also an owned type");
+                }
+            }
+        }
+
+        public class TablePerHierarchy : TestClassBase
+        {
+            private readonly ITestOutputHelper _testOutput;
+
+            public TablePerHierarchy(ITestOutputHelper testOutput)
+            {
+                _testOutput = testOutput;
+            }
+
+            public abstract class Payment
+            {
+                public int PaymentId { get; set; }
+                public decimal Amount { get; set; }
+                public string Type { get; set; }
+            }
+
+            public class PaymentCash : Payment
+            {
+                // Nothing here
+            }
+
+            public class PaymentCard : Payment
+            {
+                public string Receipt { get; set; }
+            }
+
+            public class SoldIt
+            {
+                public int SoldItId { get; set; }
+                public string WhatSold { get; set; }
+                public int PaymentId { get; set; }
+                public Payment Payment { get; set; }
+            }
+
+            public class ShippingContext : DbContext
+            {
+                public DbSet<SoldIt> SoldIts { get; set; }
+
+                public ShippingContext(DbContextOptions<ShippingContext> options) : base(options) { }
+
+                protected override void OnModelCreating(ModelBuilder modelBuilder)
+                {
+                    modelBuilder.Entity<Payment>()
+                                .HasDiscriminator(p => p.Type)
+                                .HasValue<PaymentCash>("cash")
+                                .HasValue<PaymentCard>("card");
+                }
+            }
+
+            [Fact]
+            public void TablePerHierarchySupportsInheritance()
+            {
+                var cardPayment = new PaymentCard { Amount = 2000M, Receipt = "ęśąćż" };
+                var cashPayment = new PaymentCash { Amount = 100M };
+                var notebookSoldIt = new SoldIt { WhatSold = "Notebook", Payment = cardPayment };
+                var keyboardSoldIt = new SoldIt { WhatSold = "Keyboard", Payment = cashPayment };
+
+                var dbConnectionString = DbConnectionString.Create(nameof(ConfiguringRelationships), GetCallerName());
+                var dbCtxOptions = dbConnectionString
+                    .AsSqlConnectionString<ShippingContext>()
+                    .EnsureDb();
+                using (var context = dbCtxOptions.BuildDbContext().StartLogging(_testOutput.AsLineWriter()))
+                {
+                    context.AddRange(new[] { notebookSoldIt, keyboardSoldIt });
+                    context.SaveChanges();
+                }
+
+                using (var context = dbCtxOptions.BuildDbContext().StartLogging(_testOutput.AsLineWriter()))
+                {
+                    var notebookPayment =
+                        context
+                            .SoldIts
+                            .Where(si => si.WhatSold == "Notebook")
+                            .Select(si => si.Payment)
+                            .Single();
+
+                    var keyboardPayment =
+                        context
+                            .SoldIts
+                            .Where(si => si.WhatSold == "Keyboard")
+                            .Select(si => si.Payment)
+                            .Single();
+
+                    notebookPayment.Should().BeOfType<PaymentCard>("because the original type has been preserved");
+                    notebookPayment.Type.Should().Be("card", $"because that's a discriminator value indicating {nameof(PaymentCard)} type");
+
+                    keyboardPayment.Should().BeOfType<PaymentCash>("because the original type has been preserved");
+                    keyboardPayment.Type.Should().Be("cash", $"because that's a discriminator value indicating {nameof(PaymentCash)} type");
+
+                    context
+                        .Set<Payment>()
+                        .OfType<PaymentCard>()
+                        .First().Receipt
+                        .Should()
+                        .Be("ęśąćż", "because that's another way to handle a hierarchical table");
+                }
+            }
+        }
+
+        public class TableSplitting : TestClassBase
+        {
+            private readonly ITestOutputHelper _testOutput;
+
+            public TableSplitting(ITestOutputHelper testOutput)
+            {
+                _testOutput = testOutput;
+            }
+
+            public class BookSummary
+            {
+                public int BookSummaryId { get; set; }
+                public string Title { get; set; }
+                public BookDetail Details { get; set; }
+            }
+
+            public class BookDetail
+            {
+                public int BookDetailId { get; set; }
+                public decimal Price { get; set; }
+            }
+
+            public class BookStoreContext : DbContext
+            {
+                public DbSet<BookSummary> BookSummaries { get; set; }
+                public DbSet<BookDetail> BookDetails { get; set; }
+
+                public BookStoreContext(DbContextOptions<BookStoreContext> options) : base(options) { }
+
+                protected override void OnModelCreating(ModelBuilder modelBuilder)
+                {
+                    modelBuilder.Entity<BookSummary>()
+                                .HasOne(bs => bs.Details)
+                                .WithOne()
+                                .HasForeignKey<BookDetail>(bd => bd.BookDetailId); // Tell EF Core that this entity is the dependent one
+
+                    modelBuilder.Entity<BookSummary>()
+                                .ToTable("Books");
+
+                    modelBuilder.Entity<BookDetail>()
+                                .ToTable("Books");
+                }
+            }
+
+            [Fact]
+            public void TableIsSplitIntoTwoEntities()
+            {
+                var dbConnectionString = DbConnectionString.Create(nameof(ConfiguringRelationships), GetCallerName());
+                using var context =
+                    dbConnectionString
+                        .AsSqlConnectionString<BookStoreContext>()
+                        .EnsureDb()
+                        .BuildDbContext()
+                        .StartLogging(_testOutput.AsLineWriter());
+
+                var newDetail = new BookDetail { Price = 49M };
+                var newSummary = new BookSummary { Title = "Entity Framework Core IN ACTION", Details = newDetail };
+
+                context.Add(newSummary);
+                context.SaveChanges();
+
+                context
+                    .BookSummaries
+                    .Single()
+                    .Title
+                    .Should().Contain("Entity Framework");
+
+                var aloneSummary = new BookSummary { Title = "C# 8.0 in a Nutshell" };
+                context.Add(aloneSummary);
+                context.Invoking(ctx => ctx.SaveChanges()).Should().NotThrow<Exception>("because not all parts of a split table must be saved at once");
+
+                context.Invoking(ctx =>
+                {
+                    ctx
+                    .BookSummaries
+                    .Include(bs => bs.Details)
+                    .Where(bs => bs.Title.ToLower().Contains("c#"))
+                    .Select(bs => bs.Details.Price)
+                    .Single();
+                }).Should().NotThrow("because EF Core returns the default values in this case");
+            }
+        }
     }
 }
